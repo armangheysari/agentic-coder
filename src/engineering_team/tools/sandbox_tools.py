@@ -1,0 +1,44 @@
+from pathlib import Path
+import shutil
+import subprocess
+
+from agents import function_tool
+
+
+SANDBOX_DIR = Path(__file__).parents[2] / "sandbox"
+SANDBOX_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def reset_sandbox() -> None:
+    if SANDBOX_DIR.exists():
+        shutil.rmtree(SANDBOX_DIR)
+    SANDBOX_DIR.mkdir(parents=True)
+    subprocess.run(["uv", "init", "--bare", "--python", "3.13"], cwd=SANDBOX_DIR, check=True)
+    subprocess.run(["uv", "add", "gradio"], cwd=SANDBOX_DIR, check=True)
+
+
+@function_tool
+def list_sandbox_files() -> str:
+    """List the filenames currently in the sandbox directory."""
+    names = sorted(p.name for p in SANDBOX_DIR.iterdir())
+    return "\n".join(names) if names else "The sandbox is empty."
+
+
+@function_tool
+def read_sandbox_file(filename: str) -> str:
+    """Read and return the text contents of a file in the sandbox directory."""
+    path = SANDBOX_DIR / filename
+    if not path.is_file():
+        return f"No such file in the sandbox: {filename}"
+    return path.read_text()
+
+
+@function_tool
+def write_sandbox_file(filename: str, content: str) -> str:
+    """Write text to a file in the sandbox directory, replacing any existing file."""
+    path = SANDBOX_DIR / filename
+    path.write_text(content)
+    return f"Wrote {len(content)} characters to {filename}."
+
+
+sandbox_tools = [list_sandbox_files, read_sandbox_file, write_sandbox_file]
