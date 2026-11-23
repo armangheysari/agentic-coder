@@ -41,4 +41,35 @@ def write_sandbox_file(filename: str, content: str) -> str:
     return f"Wrote {len(content)} characters to {filename}."
 
 
-sandbox_tools = [list_sandbox_files, read_sandbox_file, write_sandbox_file]
+@function_tool
+def run_sandbox_python(filename: str) -> str:
+    """Execute a Python file from the sandbox directory inside an ephemeral Docker container."""
+    try:
+        result = subprocess.run(
+            [
+                "docker", "run", "--rm",
+                "-v", f"{SANDBOX_DIR}:/workspace",
+                "-w", "/workspace",
+                "ghcr.io/astral-sh/uv:python3.13-bookworm-slim",
+                "uv", "run", filename,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        return (
+            f"Exit code: {result.returncode}\n\n"
+            f"--- stdout ---\n{result.stdout or '(empty)'}\n\n"
+            f"--- stderr ---\n{result.stderr or '(empty)'}"
+        )
+    except subprocess.TimeoutExpired as e:
+        stdout = e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or "")
+        stderr = e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or "")
+        return (
+            "The script timed out after 300 seconds.\n\n"
+            f"--- stdout so far ---\n{stdout or '(empty)'}\n\n"
+            f"--- stderr so far ---\n{stderr or '(empty)'}"
+        )
+
+
+sandbox_tools = [list_sandbox_files, read_sandbox_file, write_sandbox_file, run_sandbox_python]
