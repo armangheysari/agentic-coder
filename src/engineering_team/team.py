@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from agents import Agent, Runner, ModelSettings
@@ -76,32 +77,45 @@ test_engineer = Agent(
 )
 
 
+async def _run_with_retry(agent, prompt, retries=2):
+    last_exc = None
+    for attempt in range(retries + 1):
+        try:
+            return await Runner.run(agent, prompt, max_turns=MAX_TURNS)
+        except Exception as exc:
+            last_exc = exc
+            msg = str(exc)
+            if any(s in msg for s in ("429", "Provider returned error",
+                                      "connection reset", "Max turns")):
+                if attempt < retries:
+                    await asyncio.sleep(2 * (attempt + 1))
+                    continue
+            raise
+    raise last_exc
+
+
 async def run(requirements: str):
-    design = await Runner.run(
+    design = await _run_with_retry(
         engineering_lead,
         f"Here are the requirements: {requirements}",
-        max_turns=MAX_TURNS,
     )
     design_output = design.final_output
 
-    code = await Runner.run(
+    code = await _run_with_retry(
         backend_engineer,
         f"Here is the design:\n{design_output}\n\nHere are the requirements: {requirements}",
-        max_turns=MAX_TURNS,
     )
     code_output = code.final_output
 
-    frontend = await Runner.run(
+    frontend = await _run_with_retry(
         frontend_engineer,
         f"Here is the design:\n{design_output}\n\nHere are the requirements: {requirements}",
-        max_turns=MAX_TURNS,
     )
     frontend_output = frontend.final_output
 
-    test = await Runner.run(
+    test = await _run_with_retry(
         test_engineer,
         f"Here is the design:\n{design_output}\n\nHere are the requirements: {requirements}",
-        max_turns=MAX_TURNS,
     )
     test_output = test.final_output
 
