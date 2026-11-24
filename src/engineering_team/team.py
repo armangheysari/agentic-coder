@@ -1,6 +1,6 @@
 import logging
 
-from agents import Agent, ModelSettings
+from agents import Agent, Runner, ModelSettings
 
 from .model_config import model
 from .tools.sandbox_tools import sandbox_tools
@@ -74,3 +74,40 @@ test_engineer = Agent(
     tools=sandbox_tools,
     model_settings=backend_settings,
 )
+
+
+async def run(requirements: str):
+    design = await Runner.run(
+        engineering_lead,
+        f"Here are the requirements: {requirements}",
+        max_turns=MAX_TURNS,
+    )
+    design_output = design.final_output
+
+    code = await Runner.run(
+        backend_engineer,
+        f"Here is the design:\n{design_output}\n\nHere are the requirements: {requirements}",
+        max_turns=MAX_TURNS,
+    )
+    code_output = code.final_output
+
+    frontend = await Runner.run(
+        frontend_engineer,
+        f"Here is the design:\n{design_output}\n\nHere are the requirements: {requirements}",
+        max_turns=MAX_TURNS,
+    )
+    frontend_output = frontend.final_output
+
+    test = await Runner.run(
+        test_engineer,
+        f"Here is the design:\n{design_output}\n\nHere are the requirements: {requirements}",
+        max_turns=MAX_TURNS,
+    )
+    test_output = test.final_output
+
+    return {
+        "design": design_output,
+        "code": code_output,
+        "frontend": frontend_output,
+        "test": test_output,
+    }
