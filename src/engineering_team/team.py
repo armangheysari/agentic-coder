@@ -77,18 +77,23 @@ test_engineer = Agent(
 )
 
 
-async def _run_with_retry(agent, prompt, retries=2):
+async def _run_with_retry(agent, prompt, label, retries=2):
+    print(f"\n>>> {label}")
     last_exc = None
     for attempt in range(retries + 1):
         try:
-            return await Runner.run(agent, prompt, max_turns=MAX_TURNS)
+            result = await Runner.run(agent, prompt, max_turns=MAX_TURNS)
+            print(f"<<< {label} done ({len(result.final_output)} chars)")
+            return result
         except Exception as exc:
             last_exc = exc
             msg = str(exc)
             if any(s in msg for s in ("429", "Provider returned error",
                                       "connection reset", "Max turns")):
                 if attempt < retries:
-                    await asyncio.sleep(2 * (attempt + 1))
+                    wait = 2 * (attempt + 1)
+                    print(f"!! {label} transient error, retrying in {wait}s: {msg[:120]}")
+                    await asyncio.sleep(wait)
                     continue
             raise
     raise last_exc
@@ -98,24 +103,28 @@ async def run(requirements: str):
     design = await _run_with_retry(
         engineering_lead,
         f"Here are the requirements: {requirements}",
+        "Engineering Lead: designing the system",
     )
     design_output = design.final_output
 
     code = await _run_with_retry(
         backend_engineer,
         f"Here is the design:\n{design_output}\n\nHere are the requirements: {requirements}",
+        "Backend Engineer: writing the backend",
     )
     code_output = code.final_output
 
     frontend = await _run_with_retry(
         frontend_engineer,
         f"Here is the design:\n{design_output}\n\nHere are the requirements: {requirements}",
+        "Frontend Engineer: building the Gradio UI",
     )
     frontend_output = frontend.final_output
 
     test = await _run_with_retry(
         test_engineer,
         f"Here is the design:\n{design_output}\n\nHere are the requirements: {requirements}",
+        "Test Engineer: writing and running unit tests",
     )
     test_output = test.final_output
 
