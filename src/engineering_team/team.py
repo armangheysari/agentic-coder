@@ -9,7 +9,7 @@ from .tools.sandbox_tools import sandbox_tools
 for name in ("httpx", "httpcore", "httpx2", "httpcore2", "h2", "openai"):
     logging.getLogger(name).setLevel(logging.WARNING)
 
-MAX_TURNS = 10
+MAX_TURNS = 40
 
 LEAD_INSTRUCTIONS = """
 You are an Engineering Lead for the engineering team, directing the work of the engineers.
